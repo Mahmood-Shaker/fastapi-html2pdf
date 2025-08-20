@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 style="text-align:right;">تحويل HTML إلى PDF مع اختيار الخط من النظام</h2>
+
+<form id="convertForm">
+  <label for="font_choice" style="text-align:right;">اختر الخط:</label>
+  <select id="font_choice" name="font_choice">
+    {% for font in fonts %}
+      <option value="{{ font.filename }}|{{ font.family }}">{{ font.family }} ({{ font.filename }})</option>
+    {% endfor %}
+  </select>
+
+  <label for="html_content" style="text-align:right;">المحتوى (HTML):</label>
+  <textarea id="html_content" name="html_content">
+<h1>مرحبا بك</h1>
+<p>هذا نص عربي لاختبار تطبيق خط مختلف في PDF.</p>
+  </textarea>
+
+  <div style="text-align:right;">
+    <button type="submit">تحويل وتنزيل PDF</button>
+  </div>
+
+  <div id="status" class="status" style="text-align:right;"></div>
+</form>
+
+<script>
+  const form = document.getElementById('convertForm');
+  const statusBox = document.getElementById('status');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    statusBox.textContent = '...جاري التحويل';
+
+    const [font_filename, font_family] = document.getElementById('font_choice').value.split('|');
+    const html_content = document.getElementById('html_content').value;
+
+    try {
+      const res = await fetch('/api/convert-html', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: new URLSearchParams({
+          html_content,
+          font_filename,
+          font_family
+        })
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      const data = await res.json();
+      const link = document.createElement('a');
+      link.href = 'data:application/pdf;base64,' + data.pdf_base64;
+      link.download = 'document.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      statusBox.textContent = '✅ تم إنشاء وتنزيل ملف PDF.';
+    } catch (err) {
+      console.error(err);
+      statusBox.textContent = '❌ خطأ في التحويل: ' + err.message;
+    }
+  });
+</script>
+
+{% endblock %}
